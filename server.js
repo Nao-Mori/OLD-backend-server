@@ -1,13 +1,13 @@
 const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose')
-const http = require('https')
+const http = require('http')
 //const MongoClient = require('mongodb').MongoClient;
 
 require('dotenv').config()
 
 const app = express()
-const port = process.env.PORT || 443;
+const port = process.env.PORT || 5000;
 
 app.use(cors())
 app.use(express.json())
