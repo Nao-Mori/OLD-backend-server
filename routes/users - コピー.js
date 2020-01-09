@@ -2,6 +2,8 @@ const router = require('express').Router();
 let User = require('../models/user.model');
 const gt = require("./getTime.js")
 const bcrypt = require('bcrypt-nodejs');
+const GetTime = gt.gettime
+const GetDate = gt.getdate
 
 var listeners = {}
 function active (username) {
@@ -22,24 +24,6 @@ function active (username) {
       console.log(username+" went offline")
     })
   },120000)
-}
-
-var workers = {}
-function worktimer (username) {
-  if(!workers[username]) workers[username]={start:gt().sum,end:undefined,count:0,rest:0,int:undefined,temp:0}
-  if(workers[username].int) clearInterval(workers[username].int)
-  workers[username].int=setInterval(()=>{
-    workers[username].count++
-  },1000)
-}
-
-function breaktimer (username) {
-  clearInterval(workers[username].int)
-  workers[username].temp=0
-  workers[username].int = setInterval(()=>{
-    workers[username].rest++
-    workers[username].temp++
-  },1000)
 }
 
 router.route('/').get((req,res) => {
@@ -125,15 +109,11 @@ router.route('/getdata').post((req, res) => {
   active(req.body.username)
   User.findOne({username: req.body.username})
     .then(user =>{
-      let username = req.body.username
       let data = user
       data.password = "private"
-      if(workers[username]) {
-        data.hours = {work:workers[username].count,rest:workers[username].rest,start:workers[username].start,end:workers[username].end,temp:workers[username].temp}
-      }
       res.json(data)
     })
-    .catch(err => console.log(err));
+    .catch(err => res.status(400).json('Error: ' + err));
 });
 
 router.route('/login').post((req, res) => {
@@ -168,8 +148,6 @@ router.route('/close').post((req, res) => {
 
 router.route('/reset').post((req, res) => {
   active(req.body.username)
-  if(workers[req.body.username]!==undefined) clearInterval(workers[req.body.username].int)
-  workers[req.body.username]=undefined
   const quest2 =[{login: 1,work: 0,hours: 0,hours2:0,review: 0},{rest: 0,rest2: 0, fav: 0}]
   User.updateOne({username: req.body.username},{"$set":{"point.exp": [0,0], status: "before", quest: quest2, hours:{work:{start:[],end:[]},rest:[],resttime:0}}})
     .then(() => {
@@ -239,26 +217,46 @@ router.route('/taskmove').post((req, res) => {
 
 router.route('/work').post((req, res) => {
   active(req.body.username)
-  let username=req.body.username
-  switch(req.body.work){
-    case "work":  
-      worktimer(req.body.username)
-      break
-    case "rest":
-      breaktimer(req.body.username)
-      break
-    case "finish": {
-      workers[username].end = gt().sum
-      clearInterval(workers[username].tm)
-      break
-    }
-    default: break
-  }
-  let ob = {rest:workers[username].rest,count:workers[username].count}
+  let time = GetTime
   User.updateOne(
     { username: req.body.username}, 
-    { status: req.body.work}
-  ).then(()=>res.json(ob))
+    { "$set": {status: "working", "hours.work.start": time, "quest.0.work": 1}}
+  )
+    .then(user => res.json(user))
+    .catch(err => res.status(400).json('Error: ' + err));
+});
+
+router.route('/rest').post((req, res) => {
+  active(req.body.username)
+  let resttime = req.body.resttime + 1
+  let time = GetTime
+  User.updateOne(
+    { username: req.body.username}, 
+    { "$push": {"hours.rest": {start: time[1], end:0,sec:time[2]}},"$set":{status: "rest","hours.resttime":resttime}}
+  )
+    .then(() => res.json("Resting"))
+    .catch(err => res.status(400).json('Error: ' + err));
+});
+
+router.route('/rework').post((req, res) => {
+  active(req.body.username)
+  let time = GetTime
+  let place = "hours.rest."+req.body.time+".end"
+  User.updateOne(
+    { username: req.body.username},
+    { "$set":{status: "working",[place]:time[1]}}
+  ).then(() => res.json("End Break")).catch(err => res.status(400).json('Error: ' + err));
+});
+
+router.route('/finish').post((req, res) => {
+  active(req.body.username)
+  let time = GetTime
+  User.updateOne(
+    { username: req.body.username},
+    { "$set": {"hours.work.end": time, status: "after"}}
+  )
+    .then(() => res.json("Finished"))
+    .catch(err => res.status(400).json('Error: ' + err));
 });
 
 router.route('/dayoff').post((req, res) => {
@@ -272,21 +270,26 @@ router.route('/dayoff').post((req, res) => {
 
 router.route('/review').post((req, res) => {
   active(req.body.username)
-  let messe=null
+  let messe
+  let exp = req.body.exp + req.body.hours
   if(req.body.message!==""){
     messe = req.body.message
     messequest = 1
+  } else{
+    messe = "None"
   }
   let hourquest = 0
   let hourquest2 = 0
-  if(req.body.hours>=3) hourquest = 1
-  if(req.body.hours>=6) hourquest2 = 1
-
+  if(req.body.hours>=3){
+    hourquest = 1
+  }
+  if(req.body.hours>=6){
+    hourquest2 = 1
+  }
   let newpoint = req.body.coins + req.body.hours*200
-
   User.updateOne(
     { username: req.body.username}, 
-    { "$set": {"quest.0.review": 1, "quest.0.hours": hourquest,"quest.0.hours2": hourquest2, status: "reviewed", "point.coin":newpoint}, "$push":{history: {message: messe, quality: req.body.grade, hours: req.body.hours, date: gt().date}}}
+    { "$set": {"point.total": exp, "quest.0.review": 1, "quest.0.hours": hourquest,"quest.0.hours2": hourquest2, status: "reviewed", "point.coin":newpoint}, "$push":{history: {message: messe, quality: req.body.grade, hours: req.body.hours, date: GetDate()}}}
   )
     .then(() => {
       if(req.body.historylength===10){

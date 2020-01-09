@@ -1,33 +1,6 @@
 const router = require('express').Router();
 let Friends = require('../models/friends.model');
-
-function pluszero(num){
-  let zeroed
- if(num<10){
-   zeroed = "0"+num
- } else{
-   zeroed = num
- }
- return zeroed
-}
-
-function GetTime(){
-  let today = new Date();
-  let minute = today.getMinutes()
-  let hour = today.getHours()
-  let month = (today.getMonth()+1)
-  let date = today.getDate();
-  minute = pluszero(minute)
-  let time = hour+":"+minute
-  let tooday = String(today.getFullYear())+"/"+month+"/"+date
-  hour = pluszero(hour)
-  month = pluszero(month)
-  date = pluszero(date)
-  let second = today.getSeconds();
-  second = pluszero(second)
-  let latest = String(today.getFullYear())+month+date+hour+minute+second
-  return ([time, Number(latest),tooday])
-}
+const gt = require("./getTime.js")
 
 
 router.route('/').get((req, res) => {
@@ -38,7 +11,8 @@ router.route('/').get((req, res) => {
 
 router.route('/create').post((req, res) => {
   const username = req.body.username;
-  const chat = req.body.chat;
+  const chat = [{username: "admin", read: 1, chat: [["Hello, "+req.body.disname+"! This is Motimanager Bot.","R",gt().time,gt().last],
+  ["Please be aware that we cannot store more than 40 messages for each friend. Meaning old messages will automatically be deleted.","R",gt().time,gt().last]]}]
   const newFriends = new Friends({
     username,
     chat
@@ -53,14 +27,12 @@ router.route('/add').post((req, res) => {
   const disname = req.body.disname;
   const owner = req.body.owner;
   const ownername = req.body.ownername;
-  let pretime = GetTime()
-  let time = pretime[0]
   
   Friends.updateOne(
-    { username: owner }, { "$push":{"chat": {username : username, chat:[[pretime[2],"C",time,pretime[1]],["You added "+disname+".","S",time,pretime[1]]], read: 1, typing: false}}}
+    { username: owner }, { "$push":{"chat": {username : username, chat:[[gt().fulldate,"C",gt().time,gt().last],["You added "+disname+".","S",gt().time,gt().last]], read: 1, typing: false}}}
   ).then(()=>{
     Friends.updateOne(
-    { username: username},{"$push":{"chat":{ username: owner, chat:[[pretime[2],"C",time,pretime[1]],[ownername+" added you.","S",time,pretime[1]]], read: 1, typing: false}}
+    { username: username},{"$push":{"chat":{ username: owner, chat:[[gt().fulldate,"C",gt().time,gt().last],[ownername+" added you.","R",gt().time,gt().last]], read: 1, typing: false}}
     }).then(()=> res.json("Friend Added!")).catch(err => {res.status(400).json('Error: ' + err)})
   }).catch(err => {res.status(400).json('Error: ' + err)})
 })
@@ -72,12 +44,9 @@ router.route('/send').post((req, res) => {
   let last = String(req.body.last)
   last = last.substring(0,8)
 
-  let pretime = GetTime()
-  let time = pretime[0]
-
-  let reply1 = [content,"S",time,pretime[1]]
-  let sentm = [content,"R",time,pretime[1]]
-  let timechange = [pretime[2],"C",time,pretime[1]]
+  let reply1 = [content,"S",gt().time,gt().last]
+  let sentm = [content,"R",gt().time,gt().last]
+  let timechange = [gt().fulldate,"C",gt().time,gt().last]
   Friends.findOne({ username: username}
     ).then(user=>{
       let readcount
@@ -86,7 +55,7 @@ router.route('/send').post((req, res) => {
           readcount = user.chat[i].read + 1
         }
       }
-      if(last!==String(pretime[1]).substring(0,8)){
+      if(last!==String(gt().last).substring(0,8)){
         Friends.updateOne(
           { username: owner, "chat.username": username}, 
           { "$push": {"chat.$.chat": {"$each":[timechange, reply1] }}}
@@ -147,20 +116,18 @@ router.route('/bot').post((req, res) => {
   const content = req.body.content;
   let last = String(req.body.last)
   last = last.substring(0,8)
-
-  let pretime = GetTime()
-  let timechange = [pretime[2],"C",pretime[0],pretime[1]]
-  let sent = [content,"S",pretime[0],pretime[1]]
+  let timechange = [gt().fulldate,"C",gt().time,gt().last]
+  let sent = [content,"S",gt().time,gt().last]
 
   let reply =[]
   let c = content.toUpperCase()
   if(c==="HELLO"||c==="HEY"||c==="HI"){
-    reply = ["Hello, how can I help you?","R",pretime[0],pretime[1]]
+    reply = ["Hello, how can I help you?","R",gt().time,gt().last]
   } else{
-    reply = ["Sorry, I don't know how to answer that.", "R",pretime[0],pretime[1]]
+    reply = ["Sorry, I don't know how to answer that.", "R",gt().time,gt().last]
   }
 
-  if(last!==String(pretime[1]).substring(0,8)){
+  if(last!==String(gt().last).substring(0,8)){
     Friends.updateOne(
       { username: owner, "chat.username": username}, 
       { "$push": {"chat.$.chat": {"$each":[timechange,sent,reply]}}}
@@ -179,7 +146,14 @@ router.route('/check').post((req, res) => {
   Friends.findOne({username: req.body.username})
     .then(user => res.json(user))
     .catch(err => res.status(400).json('Error: ' + err));
-  });
+});
+
+router.route('/setfriends').post((req, res) => {
+  Friends.updateOne({username: req.body.username},
+    {"chat":req.body.chat})
+    .then(() => res.json("Set!"))
+    .catch(err => res.status(400).json('Error: ' + err));
+});
 
 router.route('/:id').delete((req, res) => {
   Friends.findByIdAndDelete(req.params.id)

@@ -30,7 +30,7 @@ function GetTime(){
 
 router.route('/').get((req, res) => {
   Token.find()
-    .then(users => res.json(users))
+    .then(() => res.json("Please specify a user"))
     .catch(err => res.status(400).json('Error: ' + err));
 });
 
@@ -59,18 +59,21 @@ router.route('/:id').delete((req, res) => {
 router.route('/check').post((req, res) => {
   Token.findOne({token: req.body.token})
     .then(user => {
-      let time = GetTime()
-      let newmonday = false
-      Token.updateOne({token:req.body.token},{latesthour: {time:time[2],page:req.body.page}}).then(()=>{
-        if(user.latestmonday<time[1]){newmonday=true}
-        if(user.latest<time[0]){
-          Token.updateOne({token: req.body.token},{latest: time[0], latestmonday: time[1]})
-          .then(()=>res.json([user,true,newmonday,time[2]]))
-          .catch(err => res.status(400).json('Error: ' + err));
-        } else{
-          res.json([user,false,false,time[2]])
-        }
-      })
+      if(user===null) res.json("fail")
+      else {
+        let time = GetTime()
+        let newmonday = false
+        Token.updateOne({token:req.body.token},{latesthour: {time:time[2],page:req.body.page}}).then(()=>{
+          if(user.latestmonday<time[1]){newmonday=true}
+          if(user.latest<time[0]){
+            Token.updateOne({token: req.body.token},{latest: time[0], latestmonday: time[1]})
+            .then(()=>res.json([user,true,newmonday,time[2]]))
+            .catch(err => res.status(400).json('Error: ' + err));
+          } else{
+            res.json([user,false,false,time[2]])
+          }
+        })
+      }
     })
     .catch(err => res.status(400).json('Error: ' + err));
 });
