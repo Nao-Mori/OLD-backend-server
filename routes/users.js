@@ -54,8 +54,8 @@ router.route('/add').post((req, res) => {
   const password = req.body.password;
   const info = {dob: req.body.dob,language:"en",region:"de",payinfo:"none"};
   const disname= req.body.disname;
-  const point = {coin:0,gem:0,exp:[0,0],icon:"Boi",rank:1,total:0,message:"Hello, I'm using Mottivator.",progress:0}
-  const quest =[{login: 1,work: 0,hours: 0,hours2:0,review: 0},{rest: 0,rest2:0,fav: 1}]
+  const point = {coin:0,gem:0,exp:[0,0],rank:1,total:0,progress:0}
+  const quest = [{login: 1,work: 0,hours: 0,hours2:0,review: 0},{rest: 0,rest2:0,fav: 1}]
   const status = "before"
   const hours = {work: {start: [], end:[]},rest:[],resttime:0}
   const items ={cards:[{name: "Boi", hp: 1200, ap: 200,ap2:400,cost:1,buff:0,equip:1}], buffs:[{name: "Health Potion",fname: "Common", power: 100, type: "HP"}],deck:[]}
@@ -68,7 +68,7 @@ router.route('/add').post((req, res) => {
 
   newUser.save()
     .then(() => {
-      User.updateOne({username:"ranking"},{"$push":{users: {username:req.body.username,disname:req.body.disname,message:"Hello, I'm using Mottivator",rank:1,icon:"Boi"}}})
+      User.updateOne({username:"ranking"},{"$push":{users: {username:req.body.username,disname:req.body.disname,message:"Hello, I'm using Motimanager",rank:1,icon:"Boi"}}})
       .then(()=>res.json("User Added!"))
       .catch(err=>res.status(400).json('Error: ' + err))
     })
@@ -79,22 +79,26 @@ router.route('/getranking').post((req, res) => {
   User.findOne({username: "ranking"})
     .then(data => {
       let rank
+      let profile
       let friends = req.body.friends
       let friends_data = []
       for(let i=0;i<data.users.length;i++){
+        if(req.body.username===data.users[i].username) profile = data.users[i]
         for(let x=0;x<friends.length;x++){
           if(data.users[i].username===friends[x]) {
             friends_data.push(data.users[i])
           }
         }
-        if(data.users[i].username===req.body.username) rank = i+1
       }
       let all = data.users.sort((a,b) => (a.rank > b.rank) ? -1 : ((b.rank > a.rank) ? 1 : 0))
+      for(let i=0;i<all.length;i++){
+        if(all[i].username===req.body.username) rank = i+1
+      }
       let top = all.splice(0,5)
       for(let i=0;i<top.length;i++){
-        top[i]={disname:top[i].disname,rank:top[i].rank}
+        top[i]={disname:top[i].disname, rank:top[i].rank, icon: top[i].icon}
       }
-      res.json({top:top, rank:rank, friends: friends_data})
+      res.json({top:top, rank: rank, friends: friends_data, profile: profile})
     }).catch(err => console.log(err));
 });
 
@@ -205,7 +209,7 @@ router.route('/taskedit').post((req, res) => {
   active(req.body.username)
   User.updateOne(
     { username: req.body.username}, 
-    { "$set": {[req.body.place]:{task:req.body.task,done:false}}}
+    { "$set": {[req.body.place] : {task:req.body.task, done:false}}}
   )
     .then(() => res.json("Edited!"))
     .catch(err => res.status(400).json('Error: ' + err));
@@ -286,7 +290,8 @@ router.route('/review').post((req, res) => {
 
   User.updateOne(
     { username: req.body.username}, 
-    { "$set": {"quest.0.review": 1, "quest.0.hours": hourquest,"quest.0.hours2": hourquest2, status: "reviewed", "point.coin":newpoint}, "$push":{history: {message: messe, quality: req.body.grade, hours: req.body.hours, date: gt().date}}}
+    { "$set": {"quest.0.review": 1, "quest.0.hours": hourquest,"quest.0.hours2": hourquest2, status: "reviewed", "point.coin": newpoint, "point.total":req.body.total},
+      "$push":{history: {message: messe, quality: req.body.grade, hours: req.body.hours, date: gt().date}}}
   )
     .then(() => {
       if(req.body.historylength===10){
@@ -364,16 +369,6 @@ router.route('/gameWin').post((req, res) => {
     .catch(err => res.status(400).json('Error: ' + err));
 });
 
-router.route('/accountEdit').post((req, res) => {
-  active(req.body.username)
-  User.updateOne(
-    { username: req.body.username}, 
-    { "$set": {[req.body.place]: req.body.data}}
-  )
-    .then(() => res.json("Changed"))
-    .catch(err => res.status(400).json('Error: ' + err));
-});
-
 router.route('/addFriend').post((req, res) => {
   active(req.body.username)
   User.updateOne(
@@ -387,17 +382,22 @@ router.route('/addFriend').post((req, res) => {
   }).catch(err => res.status(400).json('Error: ' + err));
 });
 
-router.route('/editProfile').post((req, res) => {
+router.route('/edit_account').post((req, res) => {
+  active(req.body.username)
+  User.updateOne(
+    { username: req.body.username}, 
+    { info : req.body.data}
+  )
+    .then(() => res.json("Changed"))
+    .catch(err => res.status(400).json('Error: ' + err));
+});
+
+router.route('/edit_profile').post((req, res) => {
   active(req.body.username)
   User.updateOne(
     { username: "ranking", "users.username":req.body.username}, 
-    {["users.$."+req.body.type]:req.body.message}
-  ).then((obj) => {
-      User.updateOne(
-        {username:req.body.username},
-        {"$set": {["point."+req.body.type]: req.body.message}}
-      ).then(user=>res.json(user)).catch(err=>res.status(400).json("Error: "+err))
-    })
+    {"users.$":req.body.content}
+  ).then(()=>res.json("Edited"))
     .catch(err => res.status(400).json('Error: ' + err));
 });
 
