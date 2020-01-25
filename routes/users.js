@@ -26,7 +26,7 @@ function active (username) {
 
 var workers = {}
 function worktimer (username) {
-  if(!workers[username]) workers[username]={start:gt().sum,end:undefined,count:0,rest:0,int:undefined,temp:0}
+  if(!workers[username]) workers[username] = {start:gt().time, end:undefined,count:0,rest:0,int:undefined,temp:0}
   if(workers[username].int) clearInterval(workers[username].int)
   workers[username].int=setInterval(()=>{
     workers[username].count++
@@ -45,6 +45,12 @@ function breaktimer (username) {
 router.route('/').get((req,res) => {
   User.findOne({username: "admin"})
     .then(() => res.json(true))
+    .catch(() => res.json(false));
+});
+
+router.route('/demodata').get((req,res) => {
+  User.findOne({username: "demo"})
+    .then(user => res.json(user))
     .catch(() => res.json(false));
 });
 
@@ -92,11 +98,14 @@ router.route('/getranking').post((req, res) => {
       }
       let all = data.users.sort((a,b) => (a.rank > b.rank) ? -1 : ((b.rank > a.rank) ? 1 : 0))
       for(let i=0;i<all.length;i++){
-        if(all[i].username===req.body.username) rank = i+1
+        if(all[i].username===req.body.username){
+          rank = i+1
+          all[i].you = true
+        }
       }
       let top = all.splice(0,5)
       for(let i=0;i<top.length;i++){
-        top[i]={disname:top[i].disname, rank:top[i].rank, icon: top[i].icon}
+        top[i] = { disname:top[i].disname, rank:top[i].rank, icon: top[i].icon }
       }
       res.json({top:top, rank: rank, friends: friends_data, profile: profile})
     }).catch(err => console.log(err));
@@ -175,7 +184,7 @@ router.route('/reset').post((req, res) => {
   if(workers[req.body.username]!==undefined) clearInterval(workers[req.body.username].int)
   workers[req.body.username]=undefined
   const quest2 =[{login: 1,work: 0,hours: 0,hours2:0,review: 0},{rest: 0,rest2: 0, fav: 0}]
-  User.updateOne({username: req.body.username},{"$set":{"point.exp": [0,0], status: "before", quest: quest2, hours:{work:{start:[],end:[]},rest:[],resttime:0}}})
+  User.updateOne({username: req.body.username},{"$set":{"point.exp": [3,1], status: "before", quest: quest2, hours:{work:{start:[],end:[]},rest:[],resttime:0}}})
     .then(() => {
       if(req.body.monday){
         User.updateOne({username: req.body.username},{"$set":{"quest.1":{rest:0,rest2:0,fav:1}}}).then(()=>res.json("Reset!").catch(err => res.status(400).json('Error: ' + err)))
@@ -252,7 +261,7 @@ router.route('/work').post((req, res) => {
       breaktimer(req.body.username)
       break
     case "finish": {
-      workers[username].end = gt().sum
+      workers[username].end = gt().time
       clearInterval(workers[username].tm)
       break
     }

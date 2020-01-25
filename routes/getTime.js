@@ -2,7 +2,7 @@ function pluszero(num){
     let zeroed
     if(num<10){
         zeroed = "0"+num
-    } else{
+    } else {
         zeroed = num
     }
     return String(zeroed)
