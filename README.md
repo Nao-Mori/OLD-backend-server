@@ -3,4 +3,5 @@ https://api.motimanager.com
 <br/>
 <h3>Node.js MongoDB</h3>
 <br/>
-Currently running on an EC2 instance (AWS).
+Currently running on an EC2 instance (AWS). <br/>
+Deployed through Cloundfront/Elastic Load Balancer
