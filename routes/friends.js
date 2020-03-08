@@ -11,7 +11,7 @@ router.route('/').get((req, res) => {
 
 router.route('/create').post((req, res) => {
   const username = req.body.username;
-  const chat = [{username: "admin", read: 1, chat: [["Hello, "+req.body.disname+"! This is Motimanager Bot.","R",gt().time,gt().last],
+  const chat = [{username: "admin", read: 2, chat: [["Hello, "+req.body.disname+"! This is Motimanager Bot.","R",gt().time,gt().last],
   ["Please be aware that we cannot store more than 40 messages for each friend. Meaning old messages will automatically be deleted.","R",gt().time,gt().last]]}]
   const newFriends = new Friends({
     username,

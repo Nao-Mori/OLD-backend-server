@@ -63,7 +63,8 @@ router.route('/check').post((req, res) => {
       else {
         let time = GetTime()
         let newmonday = false
-        Token.updateOne({token:req.body.token},{latesthour: {time:time[2],page:req.body.page}}).then(()=>{
+        Token.updateOne({token:req.body.token},{latesthour: {time:time[2],page:req.body.page}})
+        .then(()=>{
           if(user.latestmonday<time[1]){newmonday=true}
           if(user.latest<time[0]){
             Token.updateOne({token: req.body.token},{latest: time[0], latestmonday: time[1]})
@@ -84,9 +85,10 @@ router.route('/checkold').post((req, res) => {
     .then(user => {
       let time = GetTime()
       if(user.latest<time){
-        Token.updateOne({username: req.body.username},{"$set":{latest: time[0],latestmonday: time[1],token: req.body.token}})
+        Token.updateOne({username: req.body.username},
+        {"$set":{latest: time[0],latestmonday: time[1],token: req.body.token}})
         .then(()=>res.json(true))
-      }else{
+      } else {
         Token.updateOne({username: req.body.username},{"$set":{token: req.body.token}})
         .then(()=>res.json(false))
       }
@@ -107,7 +109,9 @@ router.route('/checkold').post((req, res) => {
 });
 
 router.route('/checkUpdate').post((req, res) => {
-  Token.findOne({username: req.body.username}).then(user=>res.json(user)).catch(err=>console.log("fail"))
+  Token.findOne({username: req.body.username})
+  .then(user=>res.json(user))
+  .catch(err=>res.status(400).json('Error: ' + err))
 })
 
 

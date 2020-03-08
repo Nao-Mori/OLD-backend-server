@@ -36,6 +36,10 @@ var users = {}
 
 
 io.on("connection", socket => {
+  socket.on("error", (err) =>
+    console.log("Caught flash policy server socket error: ")
+    console.log(err.stack)
+  )
   socket.on('join', (data, callback) => {
     console.log(data.name+" joined.")
     if(data in users) console.log("exists")

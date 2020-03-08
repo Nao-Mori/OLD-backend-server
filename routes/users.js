@@ -55,7 +55,6 @@ router.route('/demodata').get((req,res) => {
 });
 
 router.route('/add').post((req, res) => {
-  let = firsttask="abed2a58cdfb9eddbeb086a64a93a3908e470f436de87decc239affe9a60f409052c6ac53fed6c9c22667ca7dae2b0050444e0919a3fe124e14ae5b673f571d68b5c2678538edb459f1930828f18589e04507d1a6c7397264569"
   const username = req.body.username;
   const password = req.body.password;
   const info = {dob: req.body.dob,language:"en",region:"de",payinfo:"none"};
@@ -64,11 +63,11 @@ router.route('/add').post((req, res) => {
   const quest = [{login: 1,work: 0,hours: 0,hours2:0,review: 0},{rest: 0,rest2:0,fav: 1}]
   const status = "before"
   const hours = {work: {start: [], end:[]},rest:[],resttime:0}
-  const items ={cards:[{name: "Boi", hp: 1200, ap: 200,ap2:400,cost:1,buff:0,equip:1}], buffs:[{name: "Health Potion",fname: "Common", power: 100, type: "HP"}],deck:[]}
-  const tasks =[{task:firsttask, done: false}]
-  const history = [{hours: 0,quality:"Great!",message: "None",date: "Start"}]
+  const items = {cards:[{name: "Boi", hp: 1200, ap: 200,ap2:400,cost:1,buff:0,equip:1}], buffs:[{name: "Health Potion",fname: "Common", power: 100, type: "HP"}],deck:[]}
+  const tasks = []
+  const history = [{hours: 0,quality:"Great!",message: null,date: "Start"}]
   const trash = "delete"
-  const friends =["admin"]
+  const friends = ["admin"]
 
   const newUser = new User({username,password,info,disname, point,quest,status,hours,items,tasks,history,friends,trash});
 
@@ -295,16 +294,14 @@ router.route('/review').post((req, res) => {
   if(req.body.hours>=3) hourquest = 1
   if(req.body.hours>=6) hourquest2 = 1
 
-  let newpoint = req.body.coins + req.body.hours*200
-
   User.updateOne(
     { username: req.body.username}, 
-    { "$set": {"quest.0.review": 1, "quest.0.hours": hourquest,"quest.0.hours2": hourquest2, status: "reviewed", "point.coin": newpoint, "point.total":req.body.total},
+    { "$set": {"quest.0.review": 1, "quest.0.hours": hourquest,"quest.0.hours2": hourquest2, status: "reviewed", "point.coin": req.body.coins, "point.total":req.body.total},
       "$push":{history: {message: messe, quality: req.body.grade, hours: req.body.hours, date: gt().date}}}
   )
     .then(() => {
       if(req.body.historylength===10){
-        User.updateOne({username: req.body.username},{"$pop":{history: -1}}).then(()=>res.json(req.body.hours*200))
+        User.updateOne({username: req.body.username},{"$pop":{history: -1}}).then(()=>res.json("Reviewed!"))
       }else{res.json(req.body.hours*200)}
     })
     .catch(err => res.status(400).json('Error: ' + err));
@@ -354,15 +351,7 @@ router.route('/itemdelete').post((req, res) => {
     )
     .then(() => res.json("Deleted"))
     .catch(err => res.status(400).json('Error: ' + err));
-});
-
-router.route('/itemcombine').post((req, res) => {
-  active(req.body.username)
-  User.updateOne(
-    { username: req.body.username}, 
-    {"items.cards":req.body.cards,"items.buffs":req.body.buffs,"point.gem":req.body.gem}
-  ).then(()=>res.json("Combined!"))
-});
+})
 
 router.route('/gameWin').post((req, res) => {
   active(req.body.username)
